@@ -11,7 +11,7 @@
         // extern char a[12];
         // for (int i = 0; i < 12; i++)
         //     for (int j = i + 1; j < 12; j++)
-        //         if (a[j] > a[i]) {
+        //         if (a[j] < a[i]) {
         //             char tmp = a[j];
         //             a[j] = a[i];
         //             a[i] = tmp;
@@ -32,8 +32,8 @@ loop2:  cmp R5, #12             // j < 12 ?
         bge end1                // end loop if j >= 12
         ldrsb R6, [R3, R5]      // load a[j]
         ldrsb R7, [R3, R4]      // load a[i]
-        cmp R6, R7              // a[j] > a[i] ?
-        ble else                // else branch -- end loop
+        cmp R6, R7              // a[j] < a[i] ?
+        bge else                // else branch -- end loop
         strb R7, [R3, R5]       // a[j] = a[i]
         strb R6, [R3, R4]       // a[i] = tmp
 else:   add R5, R5, #1          // j++
@@ -47,16 +47,16 @@ end2:   mov R0, #0              // return value of 0
 
 .data
 array:
-        .byte 0x01
-        .byte 0x03
-        .byte 0x04
-        .byte 0x06
-        .byte 0x02
-        .byte 0x07
-        .byte 0x08
-        .byte 0x09
-        .byte 0x05
-        .byte 0x0A
-        .byte 0x0B
-        .byte 0x0C
+        .byte 90
+        .byte -112
+        .byte 24
+        .byte -107
+        .byte 16
+        .byte -118
+        .byte -25
+        .byte 79
+        .byte -34
+        .byte 97
+        .byte 109
+        .byte -32
         .end
