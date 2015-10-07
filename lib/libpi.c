@@ -17,6 +17,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+/* GPIO manipulation register offsets in words */
 #define FSEL_OFF 0
 #define SET_OFF 7
 #define CLR_OFF 10
@@ -24,12 +25,22 @@
 #define INPUT  0
 #define OUTPUT 1
 
-#define BCM2836_PERI_BASE        0x3F000000
+/* timer manipulation register offsets in words */
+#define TIMER_CS_OFF 0
+#define TIMER_CLO_OFF 1
+#define TIMER_CHI_OFF 2
+#define TIMER_C1_OFF 4
+#define TIMER_C2_OFF 5
+
+#define BCM2836_PERI_BASE       0x3F000000
 #define GPIO_BASE               (BCM2836_PERI_BASE + 0x200000)
+#define TIMER_BASE              (BCM2836_PERI_BASE + 0x3000)
 #define PAGE_SIZE               (1 << 12)
 
 /* base of GPIO registers */
 static volatile unsigned *gpio_base;
+/* base of timer registers */
+static volatile unsigned *timer_base;
 
 /**
  * \brief print an error line to stderr and exit.
@@ -44,23 +55,23 @@ static void error(const char *fmt, ...)
         exit(1);
 }
 
-static void map_gpio_mem()
+static int map_phys_mem(unsigned offset, unsigned len,
+                        volatile unsigned **output)
 {
 	int fd;
 	void *reg_map;
 
         fd = open("/dev/mem", O_RDWR|O_SYNC);
-	if (fd < 0)
-                error("open failed: %s", strerror(errno));
+	if (fd < 0) 
+                return errno;
 
-	reg_map = mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED,
-                       fd, GPIO_BASE);
-	if (reg_map == MAP_FAILED) {
-                close(fd);
-                error("mmap failed: %s", strerror(errno));
-        }
+	reg_map = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, fd, offset);
+        close(fd);
+	if (reg_map == MAP_FAILED)
+                return errno;
 
-	gpio_base = (volatile unsigned *)reg_map;
+	*output = reg_map;
+        return 0;
 }
 
 /**
@@ -136,7 +147,34 @@ bool pi_gpio_read(unsigned pin)
  * Right now this just sets up the memory needed for GPIO, but in the
  * future it could set up more things.
  */
-void pi_mem_setup()
+int pi_mem_setup()
 {
-        map_gpio_mem();
+        int ret;
+
+        ret = map_phys_mem(GPIO_BASE, PAGE_SIZE, &gpio_base);
+        if (ret)
+                goto out;
+
+        ret = map_phys_mem(TIMER_BASE, PAGE_SIZE, &timer_base);
+        if (ret)
+                goto timer_map;
+
+        return 0;
+
+timer_map:
+        munmap((void*)gpio_base, PAGE_SIZE);
+out:
+        error("%s: %s", __func__, strerror(ret));
+        return ret;
 }
+
+void pi_sleep_us(unsigned us)
+{
+        timer_base[TIMER_C1_OFF] = timer_base[TIMER_CLO_OFF] + us;
+        /* we use timer 1 */
+        timer_base[TIMER_CS_OFF] |= 1 << 1;
+        for (;;)
+                if (timer_base[TIMER_CS_OFF] & (1 << 1))
+                        break;
+}
+
