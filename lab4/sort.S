@@ -50,10 +50,10 @@ array:
         .byte 90
         .byte -112
         .byte 24
-        .byte -107
+        .byte 16
         .byte 16
         .byte -118
-        .byte -25
+        .byte 0
         .byte 79
         .byte -34
         .byte 97
