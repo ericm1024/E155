@@ -83,9 +83,11 @@ void pi_gpio_fsel(unsigned pin, int fn)
         if (!gpio_base)
                 error("%s: gpio_base uninitialized", __func__);
 
+        /* each GPFSEL register controls 10 pins */
         offset = pin/10 + FSEL_OFF;
         shift = __GF_BITS*(pin%10);
-        gpio_base[offset] &= fn << shift;
+        /* first clear the bits not in fn, then set the bits in fn */
+        gpio_base[offset] &= ~((~fn & fn_mask) << shift);
         gpio_base[offset] |= fn << shift;
 }
 
@@ -96,14 +98,16 @@ void pi_gpio_fsel(unsigned pin, int fn)
  */
 void pi_gpio_write(unsigned pin, bool val)
 {
-        unsigned offset, shift;
+        unsigned offset;
 
         if (pin >= GPIO_NR_PINS)
                 error("%s: bad pin %d", __func__, pin);
 
+        if (!gpio_base)
+                error("%s: gpio_base uninitialized", __func__);
+
         offset = pin/32 + (val ? SET_OFF : CLR_OFF);
-        shift = pin%32;
-        gpio_base[offset] |= 1 << shift;
+        gpio_base[offset] = 1 << pin%32;
 }
 
 /**
@@ -117,6 +121,9 @@ bool pi_gpio_read(unsigned pin)
 
         if (pin >= GPIO_NR_PINS)
                 error("%s: bad pin %d", __func__, pin);
+
+        if (!gpio_base)
+                error("%s: gpio_base uninitialized", __func__);
 
         offset = pin/32 + LEV_OFF;
         shift = pin%32;
