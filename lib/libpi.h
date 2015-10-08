@@ -26,3 +26,4 @@ void pi_gpio_write(unsigned pin, bool val);
 bool pi_gpio_read(unsigned pin);
 int pi_mem_setup();
 void pi_sleep_us(unsigned us);
+void error(const char *fmt, ...);

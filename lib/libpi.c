@@ -45,7 +45,7 @@ static volatile unsigned *timer_base;
 /**
  * \brief print an error line to stderr and exit.
  */
-static void error(const char *fmt, ...)
+void error(const char *fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
