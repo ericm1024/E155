@@ -17,7 +17,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-/* GPIO manipulation register offsets in words */
+/* offsets for various sets of registers */
+
+/* GPIO: TODO RENAME ME */
 #define FSEL_OFF 0
 #define SET_OFF 7
 #define CLR_OFF 10
@@ -25,22 +27,32 @@
 #define INPUT  0
 #define OUTPUT 1
 
-/* timer manipulation register offsets in words */
+/* timers */
 #define TIMER_CS_OFF 0
 #define TIMER_CLO_OFF 1
 #define TIMER_CHI_OFF 2
 #define TIMER_C1_OFF 4
 #define TIMER_C2_OFF 5
 
+/* spi0 */
+#define SPI0_CS_OFF 0
+#define SPI0_FIFO_OFF 1
+#define SPI0_CLK_OFF 2
+#define SPI0_DLEN_OFF 3
+#define SPI0_LTOH_OFF 4
+#define SPI0_DC_OFF 5
+
+/* peripheral addresses */
 #define BCM2836_PERI_BASE       0x3F000000
 #define GPIO_BASE               (BCM2836_PERI_BASE + 0x200000)
 #define TIMER_BASE              (BCM2836_PERI_BASE + 0x3000)
+#define SPI0_BASE               (BCM2836_PERI_BASE + 0x204000)
 #define PAGE_SIZE               (1 << 12)
 
-/* base of GPIO registers */
+/* base addresses of various register sets */
 static volatile unsigned *gpio_base;
-/* base of timer registers */
 static volatile unsigned *timer_base;
+static volatile unsigned *spi0_base;
 
 /**
  * \brief print an error line to stderr and exit.
@@ -157,11 +169,17 @@ int pi_mem_setup()
 
         ret = map_phys_mem(TIMER_BASE, PAGE_SIZE, &timer_base);
         if (ret)
-                goto timer_map;
+                goto out_timer;
+
+        ret = map_phys_mem(SPI0_BASE, PAGE_SIZE, &spi0_base);
+        if (ret)
+                goto out_spi;
 
         return 0;
 
-timer_map:
+out_spi:
+        munmap((void*)timer_base, PAGE_SIZE);
+out_timer:
         munmap((void*)gpio_base, PAGE_SIZE);
 out:
         error("%s: %s", __func__, strerror(ret));
@@ -178,3 +196,14 @@ void pi_sleep_us(unsigned us)
                         break;
 }
 
+void pi_spi0_init(unsigned freq)
+{
+        /* spi0 uses pins 8 to 11 */
+        pi_gpio_fsel(8, GF_ALT0);
+        pi_gpio_fsel(9, GF_ALT0);
+        pi_gpio_fsel(10, GF_ALT0);
+        pi_gpio_fsel(11, GF_ALT0);
+
+        spi0_base[SPI0_CLK_OFF] = 250000000/freq;
+        spi0_base[SPI0_CS_OFF] |= 1 << 7; /* enable spi0 */
+}

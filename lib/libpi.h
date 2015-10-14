@@ -21,9 +21,11 @@
 
 #define GPIO_NR_PINS 54
 
+/* XXX: rename to pi_pin_* */
 void pi_gpio_fsel(unsigned pin, int fn);
 void pi_gpio_write(unsigned pin, bool val);
 bool pi_gpio_read(unsigned pin);
 int pi_mem_setup();
 void pi_sleep_us(unsigned us);
 void error(const char *fmt, ...);
+void pi_spi0_init(unsigned freq);
