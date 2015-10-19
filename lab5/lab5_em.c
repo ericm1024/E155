@@ -122,13 +122,14 @@ const int notes[][2] = {
 /* our circuit has GPIO pin 12 hooked up to in+ of the LM386 */
 #define LM386_GPIO_PIN 12
 
-void play_note(unsigned freq, unsigned dur)
+void play_note(unsigned freq, unsigned dur, float tempo_mult)
 {
         /* we work in units of microseconds in this function */
         unsigned period = freq ? (1000*1000)/freq : 0;
         unsigned elapsed;
 
         dur *= 1000;
+        dur *= 1.0/tempo_mult;
 
         /* rest */
         if (!period) {
@@ -156,5 +157,5 @@ int main()
         pi_gpio_fsel(LM386_GPIO_PIN, GF_OUTPUT);
 
         for (i = 0; i < sizeof notes/sizeof notes[0]; i++)
-                play_note(notes[i][0], notes[i][1]);
+                play_note(notes[i][0], notes[i][1], 0.2);
 }
