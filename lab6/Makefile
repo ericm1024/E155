@@ -7,7 +7,7 @@ CGI_DIR=/usr/lib/cgi-bin
 
 LEDCTL_TARGET=$(CGI_DIR)/ledctl
 LEDCONTROL_TARGET=$(HTML_DIR)/ledcontrol.html
-ADC_READ_TARGET=$(CGI_DIR)/adc_read
+PLOT_TARGET=$(CGI_DIR)/plot.py
 
 all: adc_read ledctl
 
@@ -26,11 +26,10 @@ install:
 	chown "root:www-data" $(LEDCTL_TARGET)
 	chmod 010 $(LEDCTL_TARGET)
 	chmod u+s $(LEDCTL_TARGET)
-#	install adc_read executable
-	cp adc_read $(ADC_READ_TARGET)
-	chown "root:www-data" $(ADC_READ_TARGET)
-	chmod 010 $(ADC_READ_TARGET)
-	chmod u+s $(ADC_READ_TARGET)
+#	install plot.py executable
+	cp plot.py $(PLOT_TARGET)
+	chown "root:www-data" $(PLOT_TARGET)
+	chmod 555 $(PLOT_TARGET)
 #	install the ledcontrol.html file
 	cp ledcontrol.html $(LEDCONTROL_TARGET)
 	chown "root:root" $(LEDCONTROL_TARGET)
