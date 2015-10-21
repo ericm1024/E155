@@ -21,6 +21,20 @@
 
 #define GPIO_NR_PINS 54
 
+/* frequency constants for spi0_init */
+#define SPI_122kHz 2048
+#define SPI_244kHz 1024
+#define SPI_488kHz 512
+#define SPI_976kHz 256
+#define SPI_2MHz 128
+#define SPI_4MHz 64
+#define SPI_8MHz 32
+#define SPI_16MHz 16
+#define SPI_31MHz 8
+#define SPI_63MHz 4
+#define SPI_125MHz 2
+#define SPI_250MHz 1
+
 /* XXX: rename to pi_pin_* */
 void pi_gpio_fsel(unsigned pin, int fn);
 void pi_gpio_write(unsigned pin, bool val);
@@ -29,3 +43,6 @@ int pi_mem_setup();
 void pi_sleep_us(unsigned us);
 void error(const char *fmt, ...);
 void pi_spi0_init(unsigned freq);
+void pi_spi_write(unsigned val);
+unsigned pi_spi_read();
+void pi_spi_wait_tx();

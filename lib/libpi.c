@@ -196,6 +196,14 @@ void pi_sleep_us(unsigned us)
                         break;
 }
 
+/* pg 153 of the BCM2835 peripheral manual. all default values */
+#define SPI0_RESET_WORD 0x00041000
+
+/**
+ * \brief set up SPI with default settings.
+ * \param freq   Must be one of the SPI_<freq> macros as defined in
+ *               libpi.h
+ */
 void pi_spi0_init(unsigned freq)
 {
         /* spi0 uses pins 8 to 11 */
@@ -204,6 +212,27 @@ void pi_spi0_init(unsigned freq)
         pi_gpio_fsel(10, GF_ALT0);
         pi_gpio_fsel(11, GF_ALT0);
 
-        spi0_base[SPI0_CLK_OFF] = 250000000/freq;
+        spi0_base[SPI0_CLK_OFF] = freq;
+	spi0_base[SPI0_CS_OFF] = SPI0_RESET_WORD;
         spi0_base[SPI0_CS_OFF] |= 1 << 7; /* enable spi0 */
+}
+
+/* write 32 bits out to SPI */
+void pi_spi_write(unsigned val)
+{
+	spi0_base[SPI0_FIFO_OFF] = val;
+}
+
+/* read in the top 32 bits of the FIFO read queue */
+unsigned pi_spi_read()
+{
+	return spi0_base[SPI0_FIFO_OFF];
+}
+
+/* wait for the TX FIFO to drain */
+void pi_spi_wait_tx()
+{
+	/* spin on DONE bit in CS register */
+	while (!(spi0_base[SPI0_CS_OFF] & (1 << 16)))
+		;
 }
