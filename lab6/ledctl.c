@@ -1,12 +1,14 @@
 /**
  * \file ledctl.c
  * \author Eric Mueller -- emueller@hmc.edu
- * \brief Turn on or off the LEDs for lab6.
+ * \brief Turn on or off the LEDs for lab6. Code based off of starter code
+ * from Prof. Spencer.
  *
  * \detail
- *    usage: ledctl n
- *        n must be either 0 or 1. 0 turns the led off, 1 turns it on.
- *
+ *    usage: ledctl
+ *        Looks for the QUERY_STRING environment variable, and within
+ *        that looks for the string out=n where n is 0 or 1.
+ *    
  *        This program must be run as root in order to maipulate the
  *        Pi's hardware peripherals.
  *
@@ -18,21 +20,28 @@
 #include "../lib/libpi.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define LED_PIN (12)
 
-int main(int argc, char **argv)
+int main(void)
 {
         int ret;
+        char *q, *end;
         long val;
-        char *end;
 
-        if (argc != 2)
+        q = getenv("QUERY_STRING");
+        if (!q)
                 exit(1);
 
-        val = strtol(argv[1], &end, 10);
-        if (end == argv[1] || errno)
+        if (strncmp(q, "out=", 4))
+                exit(1);
+
+        q+=4;
+        val = strtol(q, &end, 10);
+        if (end == q || errno)
                 exit(1);
 
         if (val != 0 && val != 1)
@@ -44,6 +53,10 @@ int main(int argc, char **argv)
 
         pi_gpio_fsel(LED_PIN, GF_OUTPUT);
         pi_gpio_write(LED_PIN, val);
+
+        /* write out html header and redirect */
+	printf("%s%c%c\n", "Content-Type:text/html;charset=iso-8859-1",13,10);
+	printf("<META HTTP-EQUIV=\"Refresh\" CONTENT=\"0;url=/ledcontrol.html\">");
 
         return 0;
 }
