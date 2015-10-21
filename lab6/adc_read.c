@@ -76,6 +76,8 @@ static void dump_buffer(int unused)
 	unsigned idx = buff_idx + 1;
 	int fd;
 
+        (void)unused;
+        
 	fd = open(BUFF_FNAME, O_CREAT|O_TRUNC|O_RDWR, 00644);
 	if (fd < 0) {
 		printf("%s: %s\n", __func__, strerror(errno));
@@ -96,6 +98,7 @@ static void dump_buffer(int unused)
 static void reader_loop(int read_fd)
 {
 	int ret;
+        unsigned val;
 	sighandler_t sh;
 
 	/*
@@ -123,18 +126,33 @@ static void reader_loop(int read_fd)
 	}
 
 	for (;;) {
-		unsigned val;		
 		ret = read(read_fd, &val, sizeof val);
-		assert(ret == 4);
+		assert(ret == sizeof val);
 		buffer[buff_idx++ % BUFFSIZE] = val;
 	}
+}
+
+/**
+ * \brief Poll the adc and write the results to the pipe.
+ */
+static void writer_loop(int write_fd)
+{
+        struct timespec ts = {.tv_sec = 0, .tv_nsec = 1000*1000*500};
+        unsigned val;
+        int ret;
+
+        for (;;) {
+                val = adc_read();
+                ret = write(write_fd, &val, sizeof val);
+                assert(ret == sizeof val);
+                nanosleep(&ts, NULL);
+        }
 }
 
 int main()
 {
 	int ret, read_fd, write_fd, fds[2];
 	pid_t pid;
-        struct timespec ts = {.tv_sec = 1, .tv_nsec = 1000*1000};
 
 	ret = pi_mem_setup();
 	if (ret)
