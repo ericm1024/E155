@@ -61,7 +61,7 @@ static unsigned adc_read()
 }
 
 #define BUFF_FNAME "/tmp/adc_read_buffer"
-#define WWW_DATA_UID 1001
+#define WWW_DATA_UID 33
 #define BUFFSIZE 1000
 
 static unsigned buffer[BUFFSIZE] = {0};
@@ -137,7 +137,7 @@ static void reader_loop(int read_fd)
  */
 static void writer_loop(int write_fd)
 {
-        struct timespec ts = {.tv_sec = 0, .tv_nsec = 1000*1000*500};
+        struct timespec ts = {.tv_sec = 0, .tv_nsec = 1000*1000*10};
         unsigned val;
         int ret;
 
