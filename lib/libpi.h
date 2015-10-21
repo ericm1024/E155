@@ -42,7 +42,10 @@ bool pi_gpio_read(unsigned pin);
 int pi_mem_setup();
 void pi_sleep_us(unsigned us);
 void error(const char *fmt, ...);
+
 void pi_spi0_init(unsigned freq);
-void pi_spi_write(unsigned val);
-unsigned pi_spi_read();
+void pi_spi_write(unsigned char val);
+unsigned char pi_spi_read();
 void pi_spi_wait_tx();
+void pi_spi_toggle_ce();
+void pi_spi_end();

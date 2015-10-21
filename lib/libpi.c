@@ -212,27 +212,38 @@ void pi_spi0_init(unsigned freq)
         pi_gpio_fsel(10, GF_ALT0);
         pi_gpio_fsel(11, GF_ALT0);
 
+        spi0_base[SPI0_CS_OFF] = 0; //SPI0_RESET_WORD;
         spi0_base[SPI0_CLK_OFF] = freq;
-	spi0_base[SPI0_CS_OFF] = SPI0_RESET_WORD;
         spi0_base[SPI0_CS_OFF] |= 1 << 7; /* enable spi0 */
 }
 
-/* write 32 bits out to SPI */
-void pi_spi_write(unsigned val)
+/* write a byte out to SPI */
+void pi_spi_write(unsigned char val)
 {
 	spi0_base[SPI0_FIFO_OFF] = val;
+
+        /* spin on DONE bit in CS register */
+	while (!(spi0_base[SPI0_CS_OFF] & (1 << 16)))
+                ;
 }
 
-/* read in the top 32 bits of the FIFO read queue */
-unsigned pi_spi_read()
+/* read a byte out of the FIFO read queue */
+unsigned char pi_spi_read()
 {
 	return spi0_base[SPI0_FIFO_OFF];
 }
 
-/* wait for the TX FIFO to drain */
-void pi_spi_wait_tx()
+/*
+ * toggle chip enable 0. We don't have a good way to explicitly do this,
+ * so we just flip the polarity by flipping a bit in the CS register
+ */
+void pi_spi_toggle_ce()
 {
-	/* spin on DONE bit in CS register */
-	while (!(spi0_base[SPI0_CS_OFF] & (1 << 16)))
-		;
+        spi0_base[SPI0_CS_OFF] = spi0_base[SPI0_CS_OFF] ^ (1 << 21);
+}
+
+/* clear the transfer active bit */
+void pi_spi_end()
+{
+        spi0_base[SPI0_CS_OFF] &= ~(1 << 7);
 }

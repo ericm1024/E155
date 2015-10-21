@@ -14,13 +14,13 @@
 int main()
 {
 	int ret;
-	unsigned word;
+        unsigned dval;
 
 	ret = pi_mem_setup();
 	if (ret)
 		exit(1);
 
-	pi_spi0_init(SPI_488kHz);
+	pi_spi0_init(SPI_976kHz);
 
 	/*
 	 * here we prep the adc for reading. It wants to see the following
@@ -36,19 +36,17 @@ int main()
 	 * Data is transmitted MSB-first, so those bits are in reverse order
 	 * starting at the highest bit.
 	 */
-	pi_spi_write(0xD0000000);
-	pi_spi_wait_tx();
-	word = pi_spi_read();
+	pi_spi_write(0xD << 3);
+	dval = (unsigned)pi_spi_read() << 8;
+        pi_spi_write(0);
+        dval |= pi_spi_read();
+        pi_spi_end();
 
-	/*
-	 * we wrote 32 bits, so we're going to read 32 bits from the same
-	 * time frame. The first 4 bits are setup, the next bit is a null
-	 * bit, then we have our 10 bits of data, and the rest should
-	 * be zeros.
-	 */
-	printf("word before cleanup is 0x%x\n", word);
-	assert((word & (1 << 27)) == 0);
-	word = (word >> 17) & ((1 << 10) - 1);
-	printf("word after cleanup is 0x%x\n", word);
+        assert((dval & 1 << 10) == 0);
+        dval &= (1 << 10) - 1;
+
+        printf("Content-Type:text/plain\r\n\r\n");
+        printf("digital voltage: %d\r\n", dval);
+        
 	return 0;
 }
