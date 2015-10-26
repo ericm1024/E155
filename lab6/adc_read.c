@@ -91,6 +91,8 @@ static void dump_buffer(int unused)
 	int fd;
 
         (void)unused;
+
+        printf("dumping buffer...\n");
         
 	fd = open(BUFF_FNAME, O_CREAT|O_TRUNC|O_RDWR, 00644);
 	if (fd < 0) {
@@ -110,7 +112,6 @@ int main()
         struct timespec ts = {.tv_sec = 0, 
 			      .tv_nsec = 1000*1000*SAMPLE_INTERVAL_MS};
 	sighandler_t sh;
-        unsigned val;
 	int ret;
 
 	ret = pi_mem_setup();

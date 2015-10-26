@@ -21,27 +21,29 @@ from subprocess import check_output
 matplotlib.use('Agg')
 import pylab as plt
 
-pid=int(check_output(["pgrep", "adc-buffer"]))
+pid=int(check_output(["pgrep", "adc_read"]))
 os.kill(pid, signal.SIGUSR1)
+
+time.sleep(0.2)
 
 Y=[]
 with open("/tmp/adc_read_buffer", 'r') as f:
     for line in f:
         Y.append(int(line))
-
+        
 # do digital --> real voltage conversion. conversion from MCP3002 data sheet
-map(lambda x: x*5/1024.0, Y)
+Y=map(lambda x: x*5/1024.0, Y)
 
 # plot the buffer
 fig = plt.subplot(111)
 plt.title("Digital voltage readings for the last %d seconds"
-          % len(Y)*SAMPLE_PERIOD_MS/1000.0)
+          % ((len(Y)*SAMPLE_PERIOD_MS + 1000)/1000))
 plt.xlabel("time (seconds)")
 plt.ylabel("Voltage (V)");
 
 # make range of X values
 X=range(len(Y))
-map(lambda x: x*SAMPLE_PERIOD_MS/1000.0), X)
+X=map(lambda x: x*SAMPLE_PERIOD_MS/1000.0, X)
 
 fig.scatter(X,Y)
 
