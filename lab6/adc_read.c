@@ -74,6 +74,7 @@ static unsigned adc_read()
 #define BUFF_FNAME "/tmp/adc_read_buffer"
 #define WWW_DATA_UID 33
 #define BUFFSIZE 1000
+#define SAMPLE_INTERVAL_MS 10
 
 /* buffer used by child process */
 static unsigned buffer[BUFFSIZE] = {0};
@@ -103,80 +104,31 @@ static void dump_buffer(int unused)
 	close(fd);
 }
 
-/* Read from the pipe and write out to a file when signaled */
-static void reader_loop(int read_fd)
-{
-	int ret;
-        unsigned val;
-	sighandler_t sh;
-
-	/*
-	 * drop root privs -- we need to be the www-data user so that we can
-	 * get signaled
-	 */
-	ret = setuid(WWW_DATA_UID);
-	if (ret)
-		exit(1);
-
-	/* rename ourselves so the cgi-script can find our pid by name */
-	ret = prctl(PR_SET_NAME, "adc-buffer", 0, 0, 0);
-	if (ret)
-		exit(1);
-
-	/* set up signal handler */
-	sh = signal(SIGUSR1, dump_buffer);
-	if (sh == SIG_ERR)
-		exit(1);
-
-	for (ever) {
-		ret = read(read_fd, &val, sizeof val);
-		assert(ret == sizeof val);
-		buffer[buff_idx++ % BUFFSIZE] = val;
-	}
-}
-
-#define SAMPLE_INTERVAL_MS (10)
-
-/* Poll the adc and write the results to the pipe. */
-static void writer_loop(int write_fd)
-{
-        struct timespec ts = {.tv_sec = 0, 
-			      .tv_nsec = 1000*1000*SAMPLE_INTERVAL_MS};
-        unsigned val;
-        int ret;
-
-        for (ever) {
-                val = adc_read();
-                ret = write(write_fd, &val, sizeof val);
-                assert(ret == sizeof val);
-                nanosleep(&ts, NULL);
-        }
-}
-
 /* Create a pipe then fork off a child with one end of the pipe. */
 int main()
 {
-	int ret, read_fd, write_fd, fds[2];
-	pid_t pid;
+        struct timespec ts = {.tv_sec = 0, 
+			      .tv_nsec = 1000*1000*SAMPLE_INTERVAL_MS};
+	sighandler_t sh;
+        unsigned val;
+	int ret;
 
 	ret = pi_mem_setup();
 	if (ret)
 		exit(1);
-	
-	ret = pipe(fds);
-        if (ret)
+
+	ret = setuid(WWW_DATA_UID);
+	if (ret)
 		exit(1);
 
-	read_fd = fds[0];
-	write_fd = fds[1];
-
-	pid = fork();
-	if (pid < 0)
+	sh = signal(SIGUSR1, dump_buffer);
+	if (sh == SIG_ERR)
 		exit(1);
-	else if (!pid)
-		reader_loop(read_fd);
-	else
-		writer_loop(write_fd);
+
+        for (ever) {
+		buffer[buff_idx++ % BUFFSIZE] = adc_read();
+                nanosleep(&ts, NULL);
+        }
 
 	return 0;
 }
