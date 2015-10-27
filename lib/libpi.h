@@ -46,6 +46,5 @@ void error(const char *fmt, ...);
 void pi_spi0_init(unsigned freq);
 void pi_spi_write(unsigned char val);
 unsigned char pi_spi_read();
-void pi_spi_wait_tx();
-void pi_spi_toggle_ce();
+void pi_spi_begin();
 void pi_spi_end();

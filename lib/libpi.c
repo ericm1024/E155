@@ -196,9 +196,6 @@ void pi_sleep_us(unsigned us)
                         break;
 }
 
-/* pg 153 of the BCM2835 peripheral manual. all default values */
-#define SPI0_RESET_WORD 0x00041000
-
 /**
  * \brief set up SPI with default settings.
  * \param freq   Must be one of the SPI_<freq> macros as defined in
@@ -212,9 +209,8 @@ void pi_spi0_init(unsigned freq)
         pi_gpio_fsel(10, GF_ALT0);
         pi_gpio_fsel(11, GF_ALT0);
 
-        spi0_base[SPI0_CS_OFF] = 0; //SPI0_RESET_WORD;
+        spi0_base[SPI0_CS_OFF] = 0;
         spi0_base[SPI0_CLK_OFF] = freq;
-        spi0_base[SPI0_CS_OFF] |= 1 << 7; /* enable spi0 */
 }
 
 /* write a byte out to SPI */
@@ -233,13 +229,10 @@ unsigned char pi_spi_read()
 	return spi0_base[SPI0_FIFO_OFF];
 }
 
-/*
- * toggle chip enable 0. We don't have a good way to explicitly do this,
- * so we just flip the polarity by flipping a bit in the CS register
- */
-void pi_spi_toggle_ce()
+/* set the TA bit */
+void pi_spi_begin()
 {
-        spi0_base[SPI0_CS_OFF] = spi0_base[SPI0_CS_OFF] ^ (1 << 21);
+        spi0_base[SPI0_CS_OFF] |= 1 << 7;
 }
 
 /* clear the transfer active bit */

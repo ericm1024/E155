@@ -6,7 +6,8 @@
  * and read the 10 bit-value corresponding to the current light level.
  *
  * \detail This program is meant to be run as a daemon and NOT as a CGI script.
- * TODO: doccument design/change child process bs if possible.
+ * It needs to be run as root, but ater mapping some peripheral hardware it
+ * drops root privilages and runs as the www-data user.
  */
 
 #include "../lib/libpi.h"
@@ -21,14 +22,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/prctl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-
-/* for hilarious infinite loops */
-#define ever ;;
 
 /*
  * Read and return a single 10-bit value from the adc via spi.
@@ -37,8 +33,6 @@
 static unsigned adc_read()
 {
         unsigned dval;
-
-        pi_spi0_init(SPI_976kHz);
 
         /*
 	 * The ADC wants to see the following bits on MOSI:
@@ -58,6 +52,7 @@ static unsigned adc_read()
 	 * an extra byte of all 0's in order to produce enough clocks to get
 	 * all 10 bits back from the ADC.
 	 */
+        pi_spi_begin();
         pi_spi_write(0xD << 3);
 	dval = (unsigned)pi_spi_read() << 8;
         pi_spi_write(0);
@@ -126,7 +121,9 @@ int main()
 	if (sh == SIG_ERR)
 		exit(1);
 
-        for (ever) {
+        pi_spi0_init(SPI_976kHz);
+        
+        for (;;) {
 		buffer[buff_idx++ % BUFFSIZE] = adc_read();
                 nanosleep(&ts, NULL);
         }
