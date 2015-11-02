@@ -229,6 +229,12 @@ unsigned char pi_spi_read()
 	return spi0_base[SPI0_FIFO_OFF];
 }
 
+unsigned char pi_spi_rw(unsigned char wval)
+{
+        pi_spi_write(wval);
+        return pi_spi_read();
+}
+
 /* set the TA bit */
 void pi_spi_begin()
 {

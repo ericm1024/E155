@@ -59,7 +59,6 @@ static void printall(const char *key, const char *plaintext,
         print16(key);
         printf("Plaintext:  ");
         print16(plaintext);
-        printf("\n");
         printf("Ciphertext: ");
         print16(cyphertext);
         printf("Expected:   ");
@@ -72,11 +71,16 @@ static void encrypt(const char *key, const char *plaintext, char *cyphertext)
 
         pi_gpio_write(LOAD_PIN, 1);
 
-        for(i = 0; i < 16; i++)
+        pi_spi_begin();
+        for(i = 0; i < 16; i++) {
                 pi_spi_write(plaintext[i]);
+                pi_spi_read();
+        }
 
-        for(i = 0; i < 16; i++)
+        for(i = 0; i < 16; i++) {
                 pi_spi_write(key[i]);
+                pi_spi_read();
+        }
 
         pi_gpio_write(LOAD_PIN, 0);
 
@@ -95,13 +99,13 @@ static void run_test(const char *key, const char *plaintext,
         char cyphertext[16];
 
         encrypt(key, plaintext, cyphertext);
-        printall(key, plaintext, cyphertext, expected);
 
         if (strncmp(cyphertext, expected, 16) == 0)
-                printf("Success!\n");
+                printf("Success!\n\n");
         else {
                 printf("Test faied.\n");
                 printall(key, plaintext, cyphertext, expected);
+                printf("\n");
         }
 }
 
