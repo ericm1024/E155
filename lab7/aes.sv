@@ -17,15 +17,15 @@ module testbench();
     
    // test case
    initial begin   
-      // Test case from FIPS-197 Appendix A.1, B
-      key       <= 128'h2B7E151628AED2A6ABF7158809CF4F3C;
-      plaintext <= 128'h3243F6A8885A308D313198A2E0370734;
-      expected  <= 128'h3925841D02DC09FBDC118597196A0B32;
+      // // Test case from FIPS-197 Appendix A.1, B
+      // key       <= 128'h2B7E151628AED2A6ABF7158809CF4F3C;
+      // plaintext <= 128'h3243F6A8885A308D313198A2E0370734;
+      // expected  <= 128'h3925841D02DC09FBDC118597196A0B32;
       
-// Alternate test case from Appendix C.1
-//      key       <= 128'h000102030405060708090A0B0C0D0E0F;
-//      plaintext <= 128'h00112233445566778899AABBCCDDEEFF;
-//      expected  <= 128'h69C4E0D86A7B0430D8CDB78070B4C55A;
+      // Alternate test case from Appendix C.1
+      key       <= 128'h000102030405060708090A0B0C0D0E0F;
+      plaintext <= 128'h00112233445566778899AABBCCDDEEFF;
+      expected  <= 128'h69C4E0D86A7B0430D8CDB78070B4C55A;
    end
     
    // generate clock and load signals
@@ -158,7 +158,7 @@ endmodule
  *   Equivalently, the values are packed into four words as given
  *        [127:96]  [95:64] [63:32] [31:0]      w[0]    w[1]    w[2]    w[3]
  */
-module aes_core(input  logic         clk, 
+module aes_core(input  logic         clk,
                 input  logic         load,
                 input  logic [127:0] key, 
                 input  logic [127:0] plaintext, 
@@ -166,31 +166,33 @@ module aes_core(input  logic         clk,
                 output logic [127:0] cyphertext);
 
    logic [3:0] fsm_state, fsm_next;
-   logic [127:0] cypher_state, cypher_next;
+   logic [127:0] cypher_next;
    logic [127:0] rkey, prkey, sbytes_in, srows_in, srows_out,
                  mcols_in, mcols_out;
 
    sub_bytes sb(sbytes_in, srows_in);
    shift_rows sr(srows_in, srows_out);
    mix_columns mc(mcols_in, mcols_out);
-   next_round_key nrk(key, pkey, state, cur_key);
+   next_round_key nrk(key, prkey, fsm_state, rkey);
 
-   // FSM state, cypher state, and round key registers
    always_ff @(posedge clk) begin
       fsm_state <= fsm_next;
-      cypher_state <= cypher_next;
-      prkey <= rkey;
+      cyphertext <= done ? cyphertext : cypher_next;
+      prkey <= load ? key : rkey;
+      done <= fsm_state == 4'd10 && ~load ? '1 : '0;
    end
 
    // next state logic
-   assign fsm_next = fsm_state == 4'd10 ? '0 : 4'h1;
+   assign fsm_next = load ? '0 : fsm_state == 4'd10
+                   ? fsm_state : fsm_state + 4'h1;
 
    // cypher logic. see figure 5.
-   assign sbytes_in = fsm_state == '0 ? '0 : cypher_state;
+   assign sbytes_in = fsm_state == '0 ? '0 : cyphertext;
    assign mcols_in = fsm_state == '0 || fsm_state == 4'd10 ? '0 : srows_out;
    assign cypher_next = fsm_state == '0 ? plaintext ^ rkey
                       : fsm_state == 4'd10 ? srows_out ^ rkey
                       : mcols_out ^ rkey;
+
 endmodule
 
 
@@ -199,18 +201,17 @@ endmodule
  * for entire state blocks.
  */
 module sub_bytes(input logic [127:0] in, output logic [127:0] out);
-   
    sub_word sw0(in[127:96], out[127:96]);
    sub_word sw1(in[95:64], out[95:64]);
    sub_word sw2(in[63:32], out[63:32]);
-   sub_word sw2(in[31:0], out[31:0]);
+   sub_word sw3(in[31:0], out[31:0]);
 endmodule
 
 module sub_word(input logic [31:0] in, output logic [31:0] out);
-   sbox sb03(in[31:24], out[31:24]);
-   sbox sb13(in[23:16], out[23:16]);
-   sbox sb23(in[15:8], out[15:8]);
-   sbox sb33(in[7:0], out[7:0]);
+   sbox sb0(in[31:24], out[31:24]);
+   sbox sb1(in[23:16], out[23:16]);
+   sbox sb2(in[15:8], out[15:8]);
+   sbox sb3(in[7:0], out[7:0]);
 endmodule
 
 /**
@@ -219,11 +220,11 @@ endmodule
  */
 module sbox(input  logic [7:0] a, output logic [7:0] y);
             
-  // sbox implemented as a ROM
-  logic [7:0] sbox[0:255];
+   // sbox implemented as a ROM
+   logic [7:0] sbox[0:255];
 
-  initial   $readmemh("sbox.txt", sbox);
-  assign y = sbox[a];
+   initial   $readmemh("sbox.txt", sbox);
+   assign y = sbox[a];
 endmodule
 
 
@@ -234,10 +235,10 @@ endmodule
  */
 module mix_columns(input  logic [127:0] a, output logic [127:0] y);
 
-  mix_column mc0(a[127:96], y[127:96]);
-  mix_column mc1(a[95:64],  y[95:64]);
-  mix_column mc2(a[63:32],  y[63:32]);
-  mix_column mc3(a[31:0],   y[31:0]);
+   mix_column mc0(a[127:96], y[127:96]);
+   mix_column mc1(a[95:64],  y[95:64]);
+   mix_column mc2(a[63:32],  y[63:32]);
+   mix_column mc3(a[31:0],   y[31:0]);
 endmodule
 
 
@@ -286,8 +287,8 @@ endmodule
 module shift_rows(input logic [127:0] in, output logic [127:0] out);
 
    // top row: no permutation
-   assign {out[127:120], out[95:88],   out[63:56],   out[31:23]}
-        = {in[127:120],  in[95:88],    in[63:56],    in[31:23]};
+   assign {out[127:120], out[95:88],   out[63:56],   out[31:24]}
+        = {in[127:120],  in[95:88],    in[63:56],    in[31:24]};
 
    // second row: shift left by one
    assign {out[119:112], out[87:80],   out[55:48],   out[23:16]}
@@ -320,18 +321,17 @@ module rcon(input logic [3:0] i, output logic [31:0] out);
 
    always_comb
       case (i)
-      0: tmp = 'h1;
-      1: tmp = 'h2;
-      2: tmp = 'h4;
-      3: tmp = 'h8;
-      4: tmp = 'h10;
-      5: tmp = 'h20;
-      6: tmp = 'h40;
-      7: tmp = 'h80;
-      8: tmp = 'h1B;
-      9: tmp = 'h36;
-      10: tmp = 'h6C;
-      default: tmp = 'hx;
+      1: tmp = 'h1;
+      2: tmp = 'h2;
+      3: tmp = 'h4;
+      4: tmp = 'h8;
+      5: tmp = 'h10;
+      6: tmp = 'h20;
+      7: tmp = 'h40;
+      8: tmp = 'h80;
+      9: tmp = 'h1B;
+      10: tmp = 'h36;
+      default: tmp = 8'hxx;
       endcase
 
    assign out = {tmp, 24'b0};
@@ -352,10 +352,10 @@ module next_round_key(input logic [127:0] key,
                       input logic [3:0] round,
                       output logic [127:0] nkey);
 
-   logic [7:0] __rcon, rot, sub;
+   logic [31:0] __rcon, rot, sub;
 
    rcon rc(round, __rcon);
-   assign rot = {pkey[31:24], pkey[7:0], pkey[15:8], pkey[23:16]};
+   assign rot = {pkey[23:16], pkey[15:8], pkey[7:0], pkey[31:24]};
    sub_word sw(rot, sub);
 
    always_comb begin
@@ -368,7 +368,6 @@ module next_round_key(input logic [127:0] key,
          nkey[31:0] = pkey[31:0] ^ nkey[63:32];
       end
    end
-
 endmodule
 
 
