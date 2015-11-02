@@ -134,7 +134,7 @@ endmodule
 
 
 /**
- * top level AES encryption module
+ * top level AES encryption module. See figure 5 on page 15.
  * 
  * \param clk          40MHz board clock
  * \param load         raised when encryption should start
@@ -165,17 +165,59 @@ module aes_core(input  logic         clk,
                 output logic         done, 
                 output logic [127:0] cyphertext);
 
-   /* XXX: write this mofo */
-    
+   logic [3:0] fsm_state, fsm_next;
+   logic [127:0] cypher_state, cypher_next;
+   logic [127:0] rkey, prkey, sbytes_in, srows_in, srows_out,
+                 mcols_in, mcols_out;
+
+   sub_bytes sb(sbytes_in, srows_in);
+   shift_rows sr(srows_in, srows_out);
+   mix_columns mc(mcols_in, mcols_out);
+   next_round_key nrk(key, pkey, state, cur_key);
+
+   // FSM state, cypher state, and round key registers
+   always_ff @(posedge clk) begin
+      fsm_state <= fsm_next;
+      cypher_state <= cypher_next;
+      prkey <= rkey;
+   end
+
+   // next state logic
+   assign fsm_next = fsm_state == 4'd10 ? '0 : 4'h1;
+
+   // cypher logic. see figure 5.
+   assign sbytes_in = fsm_state == '0 ? '0 : cypher_state;
+   assign mcols_in = fsm_state == '0 || fsm_state == 4'd10 ? '0 : srows_out;
+   assign cypher_next = fsm_state == '0 ? plaintext ^ rkey
+                      : fsm_state == 4'd10 ? srows_out ^ rkey
+                      : mcols_out ^ rkey;
 endmodule
 
+
+/*
+ * Implements the byte substitution algorithm as described in section 5.1.1
+ * for entire state blocks.
+ */
+module sub_bytes(input logic [127:0] in, output logic [127:0] out);
+   
+   sub_word sw0(in[127:96], out[127:96]);
+   sub_word sw1(in[95:64], out[95:64]);
+   sub_word sw2(in[63:32], out[63:32]);
+   sub_word sw2(in[31:0], out[31:0]);
+endmodule
+
+module sub_word(input logic [31:0] in, output logic [31:0] out);
+   sbox sb03(in[31:24], out[31:24]);
+   sbox sb13(in[23:16], out[23:16]);
+   sbox sb23(in[15:8], out[15:8]);
+   sbox sb33(in[7:0], out[7:0]);
+endmodule
 
 /**
  * Infamous AES byte substitutions with magic numbers
  * Section 5.1.1, Figure 7
  */
-module sbox(input  logic [7:0] a,
-            output logic [7:0] y);
+module sbox(input  logic [7:0] a, output logic [7:0] y);
             
   // sbox implemented as a ROM
   logic [7:0] sbox[0:255];
@@ -185,28 +227,26 @@ module sbox(input  logic [7:0] a,
 endmodule
 
 
-/**
+/*
  * Even funkier action on columns
  * Section 5.1.3, Figure 9
  * Same operation performed on each of four columns
  */
-module mixcolumns(input  logic [127:0] a,
-                  output logic [127:0] y);
+module mix_columns(input  logic [127:0] a, output logic [127:0] y);
 
-  mixcolumn mc0(a[127:96], y[127:96]);
-  mixcolumn mc1(a[95:64],  y[95:64]);
-  mixcolumn mc2(a[63:32],  y[63:32]);
-  mixcolumn mc3(a[31:0],   y[31:0]);
+  mix_column mc0(a[127:96], y[127:96]);
+  mix_column mc1(a[95:64],  y[95:64]);
+  mix_column mc2(a[63:32],  y[63:32]);
+  mix_column mc3(a[31:0],   y[31:0]);
 endmodule
 
 
-/**
+/*
  * Perform Galois field operations on bytes in a column
  * See EQ(4) from E. Ahmed et al, Lightweight Mix Columns Implementation for AES, AIC09
  * for this hardware implementation
  */
-module mixcolumn(input  logic [31:0] a,
-                 output logic [31:0] y);
+module mix_column(input  logic [31:0] a, output logic [31:0] y);
                       
    logic [7:0]       a0, a1, a2, a3, y0, y1, y2, y3, t0, t1, t2, t3, tmp;
         
@@ -226,16 +266,112 @@ module mixcolumn(input  logic [31:0] a,
 endmodule
 
 
-/**
+/*
  * Multiply by x in GF(2^8) is a left shift
  * followed by an XOR if the result overflows
  * Uses irreducible polynomial x^8+x^4+x^3+x+1 = 00011011
  */
-module galoismult(input  logic [7:0] a,
-                  output logic [7:0] y);
+module galoismult(input  logic [7:0] a, output logic [7:0] y);
 
-   logic [7:0]                       ashift;
+   logic [7:0] ashift;
     
    assign ashift = {a[6:0], 1'b0};
    assign y = a[7] ? (ashift ^ 8'b00011011) : ashift;
 endmodule
+
+
+/*
+ * Apply the row shifting transformation specified in section 5.1.2
+ */
+module shift_rows(input logic [127:0] in, output logic [127:0] out);
+
+   // top row: no permutation
+   assign {out[127:120], out[95:88],   out[63:56],   out[31:23]}
+        = {in[127:120],  in[95:88],    in[63:56],    in[31:23]};
+
+   // second row: shift left by one
+   assign {out[119:112], out[87:80],   out[55:48],   out[23:16]}
+        = {in[87:80],    in[55:48],    in[23:16],    in[119:112]};
+
+   // third row: shift left by two
+   assign {out[111:104], out[79:72],   out[47:40],   out[15:8]}
+        = {in[47:40],    in[15:8],     in[111:104],  in[79:72]};
+
+   // fourth row: shift left by four
+   assign {out[103:96],  out[71:64],   out[39:32],   out[7:0]}
+        = {in[7:0],      in[103:96],   in[71:64],    in[39:32]};
+endmodule
+
+
+/**
+ * Moudle to implement to Rcon array as described in section 5.2 paragraph 3.
+ *
+ * \param i    The index into Rcon divided by 4. See the second while loop in
+ *             figure 11, specifically `Rcon[i/Nk]`
+ * \param out  The value of Rcon[i/4].
+ *
+ * The array does not depend on ay inputs, so we implement it statically.
+ * Also note that i can only take on values in the range 0...10, so we only
+ * implement those values
+ */
+module rcon(input logic [3:0] i, output logic [31:0] out);
+
+   logic [7:0] tmp;
+
+   always_comb
+      case (i)
+      0: tmp = 'h1;
+      1: tmp = 'h2;
+      2: tmp = 'h4;
+      3: tmp = 'h8;
+      4: tmp = 'h10;
+      5: tmp = 'h20;
+      6: tmp = 'h40;
+      7: tmp = 'h80;
+      8: tmp = 'h1B;
+      9: tmp = 'h36;
+      10: tmp = 'h6C;
+      default: tmp = 'hx;
+      endcase
+
+   assign out = {tmp, 24'b0};
+endmodule
+
+
+/**
+ * create the next round key based off of the previous round key. purely
+ * combinational. CF figure 11
+ *
+ * \param key     The cipher key
+ * \param pkey    The previous round key
+ * \param round   The round we are on
+ * \param nkey    The next round key
+ */
+module next_round_key(input logic [127:0] key,
+                      input logic [127:0] pkey,
+                      input logic [3:0] round,
+                      output logic [127:0] nkey);
+
+   logic [7:0] __rcon, rot, sub;
+
+   rcon rc(round, __rcon);
+   assign rot = {pkey[31:24], pkey[7:0], pkey[15:8], pkey[23:16]};
+   sub_word sw(rot, sub);
+
+   always_comb begin
+      if (round == '0) begin
+         nkey = key;
+      end else begin
+         nkey[127:96] = pkey[127:96] ^ __rcon ^ sub;
+         nkey[95:64] = pkey[95:64] ^ nkey[127:96];
+         nkey[63:32] = pkey[63:32] ^ nkey[95:64];
+         nkey[31:0] = pkey[31:0] ^ nkey[63:32];
+      end
+   end
+
+endmodule
+
+
+
+
+
