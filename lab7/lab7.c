@@ -13,8 +13,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define LOAD_PIN 23
-#define DONE_PIN 24
+#define LOAD_PIN 20
+#define DONE_PIN 21
 
 /* Test Case from Appendix A.1, B */
 static const char test_key_a[16] =
