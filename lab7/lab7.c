@@ -77,9 +77,8 @@ static void encrypt(const char *key, const char *plaintext, char *cyphertext)
 
         for(i = 0; i < 16; i++)
                 pi_spi_rw(key[i]);
-        pi_spi_end();
-
         pi_gpio_write(LOAD_PIN, 0);
+        pi_spi_end();
 
         while (!pi_gpio_read(DONE_PIN))
                 ;
@@ -109,11 +108,11 @@ int main(void)
         if (ret)
                 return 1;
 
-        pi_spi0_init(SPI_244kHz);
+        pi_spi0_init(SPI_16MHz);
         pi_gpio_fsel(LOAD_PIN, GF_OUTPUT);
         pi_gpio_fsel(DONE_PIN, GF_INPUT);
 
-        for (round = 0; round < 1000; ++round)
+        for (round = 0; round < 10000; ++round)
                 if (!run_test(test_key_a, test_pt_a, test_ct_a)
                     || !run_test(test_key_b, test_pt_b, test_ct_b))
                         printf("Test faied. round %u\n", round);

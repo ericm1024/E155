@@ -259,6 +259,6 @@ void pi_spi_end()
 {
         sigset_t ss;
         sigfillset(&ss);
-        sigprocmask(SIG_UNBLOCK, &ss, NULL);
         spi0_base[SPI0_CS_OFF] &= ~(1 << 7);
+        sigprocmask(SIG_UNBLOCK, &ss, NULL);
 }
