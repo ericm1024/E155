@@ -90,25 +90,20 @@ static void encrypt(const char *key, const char *plaintext, char *cyphertext)
         pi_spi_end();
 }
 
-static void run_test(const char *key, const char *plaintext,
+static bool run_test(const char *key, const char *plaintext,
                      const char *expected)
 {
         char cyphertext[16];
 
         encrypt(key, plaintext, cyphertext);
 
-        if (strncmp(cyphertext, expected, 16) == 0)
-                printf("Success!\n\n");
-        else {
-                printf("Test faied.\n");
-                printall(key, plaintext, cyphertext, expected);
-                printf("\n");
-        }
+        return strncmp(cyphertext, expected, 16) == 0;
 }
 
 int main(void)
 {
         int ret;
+        unsigned round;
   
         ret = pi_mem_setup();
         if (ret)
@@ -118,9 +113,12 @@ int main(void)
         pi_gpio_fsel(LOAD_PIN, GF_OUTPUT);
         pi_gpio_fsel(DONE_PIN, GF_INPUT);
 
-        run_test(test_key_a, test_pt_a, test_ct_a);
-        run_test(test_key_b, test_pt_b, test_ct_b);
+        for (round = 0; round < 1000; ++round)
+                if (!run_test(test_key_a, test_pt_a, test_ct_a)
+                    || !run_test(test_key_b, test_pt_b, test_ct_b))
+                        printf("Test faied. round %u\n", round);
 
+        printf("encrypted %d blocks\n", round*2);
         return 0;
 }
 
