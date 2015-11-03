@@ -10,6 +10,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -235,14 +236,26 @@ unsigned char pi_spi_rw(unsigned char wval)
         return pi_spi_read();
 }
 
-/* set the TA bit */
+/* 
+ * set the TA bit and block all signals. BEWARE this MUST be paird with
+ * a pi_spi_end() if you are doing any kind of signal handling
+ */
 void pi_spi_begin()
 {
+        sigset_t ss;
+        sigfillset(&ss);
+        sigprocmask(SIG_BLOCK, &ss, NULL);
         spi0_base[SPI0_CS_OFF] |= 1 << 7;
 }
 
-/* clear the transfer active bit */
+/* 
+ * clear the transfer active bit and unblock all signals. This should be paired
+ * with a pi_spi_begin()
+ */
 void pi_spi_end()
 {
+        sigset_t ss;
+        sigfillset(&ss);
+        sigprocmask(SIG_UNBLOCK, &ss, NULL);
         spi0_base[SPI0_CS_OFF] &= ~(1 << 7);
 }

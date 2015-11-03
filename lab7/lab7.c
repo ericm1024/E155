@@ -72,25 +72,22 @@ static void encrypt(const char *key, const char *plaintext, char *cyphertext)
         pi_gpio_write(LOAD_PIN, 1);
 
         pi_spi_begin();
-        for(i = 0; i < 16; i++) {
-                pi_spi_write(plaintext[i]);
-                pi_spi_read();
-        }
+        for(i = 0; i < 16; i++)
+                pi_spi_rw(plaintext[i]);
 
-        for(i = 0; i < 16; i++) {
-                pi_spi_write(key[i]);
-                pi_spi_read();
-        }
+        for(i = 0; i < 16; i++)
+                pi_spi_rw(key[i]);
+        pi_spi_end();
 
         pi_gpio_write(LOAD_PIN, 0);
 
         while (!pi_gpio_read(DONE_PIN))
                 ;
 
-        for(i = 0; i < 16; i++) {
-                pi_spi_write(0);
-                cyphertext[i] = pi_spi_read();
-        }
+        pi_spi_begin();
+        for(i = 0; i < 16; i++)
+                cyphertext[i] = pi_spi_rw(0);
+        pi_spi_end();
 }
 
 static void run_test(const char *key, const char *plaintext,
